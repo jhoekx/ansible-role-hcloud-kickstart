@@ -1,0 +1,9 @@
+hcloud_ks__mirror: "http://mirror.hetzner.de/centos"
+hcloud_ks__version: "7"
+hcloud_ks__token: ""
+hcloud_ks__server: "{{ inventory_hostname_short }}"
+hcloud_ks__kickstart: "centos-{{ hcloud_ks__version }}.ks"
+
+hcloud_ks__disk: "sda"
+hcloud_ks__ssh_keys: []
+hcloud_ks__crypted_root_password: ""

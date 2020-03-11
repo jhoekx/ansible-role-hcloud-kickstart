@@ -1,0 +1,87 @@
+---
+
+### Example playbook:
+### - add SSH key to group_vars/all.yml
+### - export HCLOUD_TOKEN=<token>
+
+- name: Provision Hetzner Cloud Server
+  hosts: hcloud_servers
+  user: root
+  gather_facts: no
+
+  vars:
+    hcloud_token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+    force_kickstart: no
+
+  tasks:
+
+  - name: Create SSH keys
+    local_action:
+      module: hcloud_ssh_key
+      api_token: "{{ hcloud_token }}"
+      name: "{{ item.name }}"
+      public_key: "{{ item.key }}"
+    loop: "{{ ssh_keys }}"
+    run_once: yes
+
+  - name: Get VM information
+    local_action:
+      module: hcloud_server_info
+      api_token: "{{ hcloud_token }}"
+      name: "{{ inventory_hostname_short }}"
+    register: info_vm
+
+  - name: Create VM
+    local_action:
+      module: hcloud_server
+      api_token: "{{ hcloud_token }}"
+      name: "{{ inventory_hostname_short }}"
+      location: fsn1
+      server_type: cx11-ceph
+      image: centos-7
+      ssh_keys: "{{ ssh_keys|map(attribute='name')|list }}"
+    register: create_vm
+    when: info_vm.hcloud_server_info|count == 0
+
+  - name: Register the ip address
+    add_host:
+      hostname: '{{ inventory_hostname }}'
+      ansible_host: '{{ info_vm.hcloud_server_info[0].ipv4_address }}'
+    when: create_vm is not changed and force_kickstart|bool == False
+
+  - name: Register the new ip address
+    add_host:
+      hostname: '{{ inventory_hostname }}'
+      ansible_host: '{{ create_vm.hcloud_server.ipv4_address }}'
+      groups:
+      - unprovisioned
+    when: create_vm is changed
+
+  - name: Register the new ip address
+    add_host:
+      hostname: '{{ inventory_hostname }}'
+      ansible_host: '{{ info_vm.hcloud_server_info[0].ipv4_address }}'
+      groups:
+      - unprovisioned
+    when: force_kickstart|bool == True
+
+- name: Kickstart the system
+  hosts: unprovisioned
+  user: root
+  gather_facts: no
+
+  tasks:
+
+  - import_role:
+      name: ansible-role-hcloud-kickstart
+    vars:
+      hcloud_ks__token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+      hcloud_ks__ssh_keys: "{{ ssh_keys }}"
+      hcloud_ks__crypted_root_password: "$6$RRS5klDNnOqkaq9q$SN8P/iZA2csiGXjXnk47hFjGodFYgWmDi.xA52sFMiPXn5uLrGJCtJTuVdGMEau/qC/b6rm2SI8D5qP31XVWL." ### OpenSystem
+
+- name: Access the newly kickstarted system
+  hosts: hcloud_servers
+  user: root
+  tasks:
+
+  - ping:

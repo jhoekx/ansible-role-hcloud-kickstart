@@ -1,0 +1,3 @@
+ssh_keys:
+- name: my-key
+  key: "<ssh-rsa key>"

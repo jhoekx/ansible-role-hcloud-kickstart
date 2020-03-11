@@ -1,0 +1,28 @@
+- name: Restart in rescue mode
+  local_action:
+    module: hcloud_server
+    api_token: "{{ hcloud_ks__token }}"
+    name: "{{ hcloud_ks__server }}"
+    ssh_keys: "{{ hcloud_ks__ssh_keys|map(attribute='name')|list }}"
+    rescue_mode: linux64
+    state: restarted
+
+- name: Wait for the rescue system to be available
+  wait_for_connection:
+    timeout: 60
+
+- name: Upload the partitioning script
+  template:
+    src: prepare-kickstart.sh
+    dest: prepare-kickstart.sh
+
+- name: Wipe the drive and prepare for kickstart
+  command: /bin/bash prepare-kickstart.sh
+
+- name: Template the kickstart
+  template:
+    src: "{{ hcloud_ks__kickstart }}"
+    dest: /boot/ks.cfg
+
+- name: Wait for the kickstart to finish
+  reboot:
