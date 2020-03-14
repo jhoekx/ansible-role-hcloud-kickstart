@@ -41,29 +41,34 @@
       image: centos-7
       ssh_keys: "{{ ssh_keys|map(attribute='name')|list }}"
     register: create_vm
-    when: info_vm.hcloud_server_info|count == 0
 
   - name: Register the ip address
     add_host:
-      hostname: '{{ inventory_hostname }}'
-      ansible_host: '{{ info_vm.hcloud_server_info[0].ipv4_address }}'
-    when: create_vm is not changed and force_kickstart|bool == False
+      hostname: '{{ hostvars[item].inventory_hostname }}'
+      ansible_host: '{{ hostvars[item].info_vm.hcloud_server_info[0].ipv4_address }}'
+    changed_when: no
+    when: hostvars[item].info_vm.hcloud_server_info|count == 1 and force_kickstart|bool == False
+    with_items: "{{ ansible_play_hosts }}"
 
   - name: Register the new ip address
     add_host:
-      hostname: '{{ inventory_hostname }}'
-      ansible_host: '{{ create_vm.hcloud_server.ipv4_address }}'
+      hostname: '{{ hostvars[item].inventory_hostname }}'
+      ansible_host: '{{ hostvars[item].create_vm.hcloud_server.ipv4_address }}'
       groups:
       - unprovisioned
-    when: create_vm is changed
+    changed_when: no
+    when: hostvars[item].info_vm.hcloud_server_info|count == 0
+    with_items: "{{ ansible_play_hosts }}"
 
   - name: Register the new ip address
     add_host:
-      hostname: '{{ inventory_hostname }}'
-      ansible_host: '{{ info_vm.hcloud_server_info[0].ipv4_address }}'
+      hostname: '{{ hostvars[item].inventory_hostname }}'
+      ansible_host: '{{ hostvars[item].info_vm.hcloud_server_info[0].ipv4_address }}'
       groups:
       - unprovisioned
+    changed_when: no
     when: force_kickstart|bool == True
+    with_items: "{{ ansible_play_hosts }}"
 
 - name: Kickstart the system
   hosts: unprovisioned
@@ -75,7 +80,6 @@
   - import_role:
       name: ansible-role-hcloud-kickstart
     vars:
-      hcloud_ks__token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
       hcloud_ks__ssh_keys: "{{ ssh_keys }}"
       hcloud_ks__crypted_root_password: "$6$RRS5klDNnOqkaq9q$SN8P/iZA2csiGXjXnk47hFjGodFYgWmDi.xA52sFMiPXn5uLrGJCtJTuVdGMEau/qC/b6rm2SI8D5qP31XVWL." ### OpenSystem
 

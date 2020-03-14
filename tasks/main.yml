@@ -16,13 +16,13 @@
     src: prepare-kickstart.sh
     dest: prepare-kickstart.sh
 
-- name: Wipe the drive and prepare for kickstart
+- name: Wipe the drive and prepare for Kickstart
   command: /bin/bash prepare-kickstart.sh
 
-- name: Template the kickstart
+- name: Template the Kickstart
   template:
     src: "{{ hcloud_ks__kickstart }}"
     dest: /boot/ks.cfg
 
-- name: Wait for the kickstart to finish
+- name: Wait for the Kickstart to finish
   reboot:
